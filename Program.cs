@@ -305,9 +305,10 @@ class Program
 {
     static void Main()
     {
-        Player p1 = new Player("Abcd",1);
-        Player p2 = new Player("Bcde",2);
-        Player p3 = new Player("Bcde",3);
+        Player p1 = new Player("Asdf",1);
+        Player p2 = new Player("Zxcv",2);
+        Player p3 = new Player("Qwer",3);
+        Player p4 = new Player("Sdfg",4);
 
         // (initialize names/chips if you want)
         List<Player> players = new List<Player> { p1, p2, p3 };
