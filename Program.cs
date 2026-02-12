@@ -200,7 +200,7 @@ class Table
     RoundState roundState;
     public List<Player> Players { get; private set; }
     List<Player> InPlayers { get; set; }
-    Dealer Dealer { get; set; }
+    public Dealer Dealer { get; private set; }
     public int Pot { get; private set; }
     Player? winner;
     public Table(List<Player> players)
