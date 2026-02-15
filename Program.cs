@@ -293,20 +293,21 @@ class Evaluator
         if (IsStraight(cards, out var straightHigh, out kicker))
             return new HandEvaluation { Rank = 4, PrimaryValue = straightHigh };
 
-        if (IsThreeOfAKind(rankGroups, out var tripsRank, out var secondaryValue, out kicker))
+        if (IsThreeOfAKind(cards, out var tripsRank, out var secondaryValue, out kicker))
             return new HandEvaluation { Rank = 3, PrimaryValue = tripsRank, SecondaryValue = secondaryValue };
 
-        if (IsTwoPair(rankGroups, out var highPair, out var lowPair, out kicker))
+        if (IsTwoPair(cards, out var highPair, out var lowPair, out kicker))
             return new HandEvaluation { Rank = 2, PrimaryValue = highPair, SecondaryValue = lowPair };
 
         if (IsOnePair(rankGroups, out var pairRank, out kicker))
             return new HandEvaluation { Rank = 1, PrimaryValue = pairRank };
 
-        HighCard(cards, out int highCard, out kicker);
-        return new HandEvaluation 
+        HighCard(cards, out int highCard,out secondaryValue, out kicker);
+            return new HandEvaluation 
         { 
-            Rank = 0, // 0 = High Card
+            Rank = 0,
             PrimaryValue = highCard, 
+            SecondaryValue = secondaryValue,
             Kicker = kicker
         };
     }
@@ -416,49 +417,71 @@ class Evaluator
         }
         return false;
     }
-    private static bool IsThreeOfAKind(List<IGrouping<Rank, Card>> rankGroups, out int tripRank ,out int secondary, out int kicker)
+    private static bool IsThreeOfAKind(List<Card> cards, out int tripRank, out int secondary, out int kicker)
     {
         tripRank = 0;
-        kicker = 0;
         secondary = 0;
-        
+        kicker = 0;
+
+        var rankGroups = cards.GroupBy(c => c.Rank)
+                            .OrderByDescending(g => g.Count())
+                            .ThenByDescending(g => g.Key)
+                            .ToList();
+
         var trips = rankGroups.FirstOrDefault(g => g.Count() == 3);
         if (trips == null)
             return false;
 
         tripRank = (int)trips.Key;
 
-        var remainingRanks = rankGroups
-        .Where(g => g.Key != trips.Key)
-        .Select(g => (int)g.Key)
-        .OrderByDescending(r => r)
-        .ToList();
+        // Assign out variable to local to use in lambda
+        var tripRankLocal = tripRank;
 
-    if (remainingRanks.Count >= 1) secondary = remainingRanks[0];
-    if (remainingRanks.Count >= 2) kicker = remainingRanks[1];      
+        // Remaining cards outside the trips
+        var remainingRanks = cards
+            .Where(c => (int)c.Rank != tripRankLocal)
+            .Select(c => (int)c.Rank)
+            .OrderByDescending(r => r)
+            .ToList();
+
+        if (remainingRanks.Count >= 1) secondary = remainingRanks[0];
+        if (remainingRanks.Count >= 2) kicker = remainingRanks[1];
+
         return true;
-
     }
-    private static bool IsTwoPair(List<IGrouping<Rank,Card>> rankGroups, out int highPair, out int lowPair, out int kicker)
+    private static bool IsTwoPair(List<Card> cards, out int highPair, out int lowPair, out int kicker)
     {
         highPair = 0;
         lowPair = 0;
         kicker = 0;
 
-        var pairs = rankGroups.Where(g => g.Count() == 2).Select(g => (int)g.Key).OrderByDescending(r => r).ToList();
+        var rankGroups = cards.GroupBy(c => c.Rank)
+                            .OrderByDescending(g => g.Count())
+                            .ThenByDescending(g => g.Key)
+                            .ToList();
+
+        var pairs = rankGroups.Where(g => g.Count() == 2)
+                            .Select(g => (int)g.Key)
+                            .OrderByDescending(r => r)
+                            .ToList();
 
         if (pairs.Count >= 2)
         {
-            highPair = (int)pairs[0];
-            lowPair = (int)pairs[1];
-            kicker = rankGroups
-                .Where(g => !pairs.Contains((int)g.Key))
-                .Select(g => (int)g.Key)
+            highPair = pairs[0];
+            lowPair = pairs[1];
+
+            var usedRanks = new HashSet<int> { highPair, lowPair };
+
+            // Kicker = highest card not in the two pairs
+            kicker = cards
+                .Select(c => (int)c.Rank)
+                .Where(r => !usedRanks.Contains(r))
                 .DefaultIfEmpty(0)
                 .Max();
+
             return true;
         }
-        
+
         return false;
     }
     private static bool IsOnePair(List<IGrouping<Rank, Card>> rankGroups, out int pairRank , out int kicker)
@@ -471,17 +494,16 @@ class Evaluator
 
         pairRank = (int)pair.Key;
 
-        //TODO inspect this for accuracy
         kicker = rankGroups
             .Where(g => g.Count() != 2)
             .Max(g => (int)g.Key);
         return true;
     }    
-    private static bool HighCard(List<Card>cards, out int highCard, out int kicker)
+    private static bool HighCard(List<Card>cards, out int highCard, out int secondary, out int kicker)
     {
-        kicker = 0;
         highCard = (int)cards[0].Rank;
-        kicker   = (int)cards[1].Rank;
+        secondary = (int)cards[1].Rank;
+        kicker = cards.Count >= 3 ? (int)cards[2].Rank : 0;
         return true;
     }
 }
@@ -697,13 +719,27 @@ class Program
         Table table = new Table(players);
         //table.Dealer.TestBoard();
         //table.Dealer.TestHand();
-        table.Dealer.DealBoardCards();
-        table.Dealer.DealBoardCards();
-        table.Dealer.DealBoardCards();
-        table.Dealer.DealPlayerCards();
-        table.PrintTable();
-        
-        Evaluator.EvaluateBoard(players,table.Dealer.Board);
+        bool flag = true;
+        while (flag)
+        {
+            foreach (Player p in players)
+                p.Hand.Clear();
+            table.Dealer.ClearBoard();
+
+            table.Dealer.DealBoardCards();
+            table.Dealer.DealBoardCards();
+            table.Dealer.DealBoardCards();
+            table.Dealer.DealPlayerCards();
+            table.PrintTable();
+            
+            Evaluator.EvaluateBoard(players,table.Dealer.Board);  
+
+            
+            var key = Console.ReadKey(true).Key;
+            if (key == ConsoleKey.Backspace)
+                flag = false; 
+        }
+
     }   
 } 
 
