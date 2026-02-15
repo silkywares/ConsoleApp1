@@ -129,7 +129,7 @@ class Dealer
             }
         }
     }
-    public void DealBoardCard()
+    public void DealBoardCards()
     {
         if(Board.Count == 0)
         {
@@ -166,9 +166,74 @@ class Dealer
         Players[0].Hand.Add(new Card(Rank.Eight, Suit.Diamonds));
         Players[0].Hand.Add(new Card(Rank.Two, Suit.Diamonds));
     }
+    public void TestOneMillion()
+    {
+       int[] handRankCounts = new int[10]; 
+
+        int simulations = 1_000_000;
+
+        for (int i = 0; i < simulations; i++)
+        {
+            
+            DealPlayerCards();
+            DealBoardCards();
+            DealBoardCards();
+            DealBoardCards();
+
+            foreach (var player in Players)
+            {
+                var eval = Evaluator.EvaluatePlayer(player, Board);
+
+                // check for Royal Flush
+                if (eval.Rank == 8 && eval.PrimaryValue == 14) // Ace-high straight flush
+                {
+                    handRankCounts[9]++; // Royal Flush
+                }
+                else
+                {
+                    handRankCounts[eval.Rank]++;
+                }
+            }
+
+            ClearBoard();
+        }
+
+        // Print results
+        Console.WriteLine("Simulation results after 1,000,000 deals:");
+        string[] rankNames = { "High Card", "One Pair", "Two Pair", "Three of a Kind", "Straight",
+                            "Flush", "Full House", "Four of a Kind", "Straight Flush", "Royal Flush" };
+
+        for (int rank = 0; rank < handRankCounts.Length; rank++)
+        {
+            Console.WriteLine($"{rankNames[rank]}: {handRankCounts[rank]}");
+        }
+ 
+    }
 }
 class Evaluator
 {
+    static string[] rankNames = { "High Card", "One Pair", "Two Pair", "Three of a Kind", "Straight",
+                            "Flush", "Full House", "Four of a Kind", "Straight Flush", "Royal Flush" };
+
+    /*
+    High Card → kicker(s) matter (top 4 remaining cards)
+
+    One Pair → top 3 remaining cards are kickers
+
+    Two Pair → 1 kicker (fifth card outside the two pairs)
+
+    Three of a Kind → 2 kickers (highest remaining cards)
+
+    Straight → kicker usually not needed (high card of straight determines it)
+
+    Flush → top 5 suited cards matter (primary = highest, secondary = next highest, etc.)
+
+    !Full House → no kicker (trips + pair fully determine hand)
+
+    !Four of a Kind → 1 kicker (fifth card outside quads)
+
+    Straight Flush / Royal Flush → kicker irrelevant
+    */
     public class PlayerResult
     {
         public Player Player { get; set; }
@@ -194,9 +259,9 @@ class Evaluator
         {
             var evaluation = EvaluatePlayer(p, board);
             results.Add(new PlayerResult(p) { Evaluation = evaluation });
-            //Console.WriteLine($"{p.Name}-{evaluation.Rank}");
+            Console.WriteLine($"{p.Name}- {rankNames[evaluation.Rank]}");
         }
-
+        EvaluateWinner(results);
         return results;
     }
     public static HandEvaluation EvaluatePlayer(Player p, List<Card> board)
@@ -228,8 +293,8 @@ class Evaluator
         if (IsStraight(cards, out var straightHigh, out kicker))
             return new HandEvaluation { Rank = 4, PrimaryValue = straightHigh };
 
-        if (IsThreeOfAKind(rankGroups, out var tripsRank, out kicker))
-            return new HandEvaluation { Rank = 3, PrimaryValue = tripsRank };
+        if (IsThreeOfAKind(rankGroups, out var tripsRank, out var secondaryValue, out kicker))
+            return new HandEvaluation { Rank = 3, PrimaryValue = tripsRank, SecondaryValue = secondaryValue };
 
         if (IsTwoPair(rankGroups, out var highPair, out var lowPair, out kicker))
             return new HandEvaluation { Rank = 2, PrimaryValue = highPair, SecondaryValue = lowPair };
@@ -244,6 +309,36 @@ class Evaluator
             PrimaryValue = highCard, 
             Kicker = kicker
         };
+    }
+    private static List<PlayerResult> EvaluateWinner(List<PlayerResult> results)
+    {
+       var topRank = results.Max(r => r.Evaluation.Rank);
+
+        // Filter players with the top rank
+        var topPlayers = results
+            .Where(r => r.Evaluation.Rank == topRank)
+            .ToList();
+
+        // If multiple, compare primary, secondary, kicker
+        var maxPrimary = topPlayers.Max(r => r.Evaluation.PrimaryValue);
+        topPlayers = topPlayers.Where(r => r.Evaluation.PrimaryValue == maxPrimary).ToList();
+
+        var maxSecondary = topPlayers.Max(r => r.Evaluation.SecondaryValue);
+        topPlayers = topPlayers.Where(r => r.Evaluation.SecondaryValue == maxSecondary).ToList();
+
+        var maxKicker = topPlayers.Max(r => r.Evaluation.Kicker);
+        topPlayers = topPlayers.Where(r => r.Evaluation.Kicker == maxKicker).ToList();
+
+        // topPlayers now contains one or more winners
+        if (topPlayers.Count == 1)
+        {
+            Console.WriteLine($"{topPlayers[0].Player.Name} wins!");
+        }
+        else
+        {
+            Console.WriteLine("Tie between: " + string.Join(", ", topPlayers.Select(p => p.Player.Name)));
+        }
+        return topPlayers;
     }
     private static bool IsFourOfAKind(List<IGrouping<Rank, Card>> rankGroups, out int quadRank, out int kicker)
     {
@@ -266,12 +361,9 @@ class Evaluator
     {
         high = 0;
         kicker = 0;
-        //TODO this aint done at all
         foreach (var group in suitGroups)
-        {
             if (IsStraight(group.ToList(), out high, out kicker))
-                return true;
-        }
+                return true; 
         return false;
     }
     private static bool IsStraight(List<Card> cards, out int high, out int kicker)
@@ -289,7 +381,9 @@ class Evaluator
             if (ranks[i + 4] - ranks[i] == 4) 
             { 
                 high = ranks[i+4]; 
-                //TODO assign kicker
+                // Kicker = highest remaining card not in straight
+                var straightSet = ranks.GetRange(i, 5).ToHashSet();
+                kicker = ranks.Where(r => !straightSet.Contains(r)).DefaultIfEmpty(0).Max();
                 return true;
             } 
         }
@@ -306,7 +400,6 @@ class Evaluator
         {
             trips = (int)tripRank.Key;
             pair = (int)pairRank.Key;
-            //TODO assign kicker
             return true;
         }
         return false;
@@ -318,26 +411,31 @@ class Evaluator
         if( largestGroup.Count() >= 5)
         {
             high = largestGroup.Max(c => (int)c.Rank);
-            //TODO assign kicker
+            
             return true;
         }
         return false;
     }
-    private static bool IsThreeOfAKind(List<IGrouping<Rank, Card>> rankGroups, out int tripRank , out int kicker)
+    private static bool IsThreeOfAKind(List<IGrouping<Rank, Card>> rankGroups, out int tripRank ,out int secondary, out int kicker)
     {
-        kicker = 0;
         tripRank = 0;
+        kicker = 0;
+        secondary = 0;
+        
         var trips = rankGroups.FirstOrDefault(g => g.Count() == 3);
         if (trips == null)
             return false;
 
         tripRank = (int)trips.Key;
 
-        //TODO inspect this for accuracy
-        kicker = rankGroups
-            .Where(g => g.Count() != 3)
-            .Max(g => (int)g.Key);
+        var remainingRanks = rankGroups
+        .Where(g => g.Key != trips.Key)
+        .Select(g => (int)g.Key)
+        .OrderByDescending(r => r)
+        .ToList();
 
+    if (remainingRanks.Count >= 1) secondary = remainingRanks[0];
+    if (remainingRanks.Count >= 2) kicker = remainingRanks[1];      
         return true;
 
     }
@@ -347,15 +445,20 @@ class Evaluator
         lowPair = 0;
         kicker = 0;
 
-        var pairGroups = rankGroups.Where(g => g.Count() == 2).ToList();
+        var pairs = rankGroups.Where(g => g.Count() == 2).Select(g => (int)g.Key).OrderByDescending(r => r).ToList();
 
-        if (pairGroups.Count >= 2)
+        if (pairs.Count >= 2)
         {
-            highPair = (int)pairGroups[0].Key;
-            lowPair = (int)pairGroups[1].Key;
+            highPair = (int)pairs[0];
+            lowPair = (int)pairs[1];
+            kicker = rankGroups
+                .Where(g => !pairs.Contains((int)g.Key))
+                .Select(g => (int)g.Key)
+                .DefaultIfEmpty(0)
+                .Max();
             return true;
         }
-        //TODO kicker logic
+        
         return false;
     }
     private static bool IsOnePair(List<IGrouping<Rank, Card>> rankGroups, out int pairRank , out int kicker)
@@ -497,19 +600,19 @@ class Table
     }
     private void Flop()
     {
-        Dealer.DealBoardCard();
+        Dealer.DealBoardCards();
         Betting();
         roundState = RoundState.Turn;
     }
     private void Turn()
     {
-        Dealer.DealBoardCard();
+        Dealer.DealBoardCards();
         Betting();
         roundState = RoundState.River;
     }
     private void River()
     {
-        Dealer.DealBoardCard();
+        Dealer.DealBoardCards();
         Betting();
         roundState = RoundState.Reset;
     }
@@ -552,39 +655,19 @@ class Table
 
         roundState = RoundState.Preflop;
     }
-}
-class Program
-{
-    static void Main()
+    public void PrintTable()
     {
-        Player p1 = new Player("Luis",1);
-        Player p2 = new Player("Arny",2);
-        Player p3 = new Player("GMan",3);
-        Player p4 = new Player("Monkers",4);
-        Player p5 = new Player("Nigamus",5);
-
-        // (initialize names/chips if you want)
-        List<Player> players = new List<Player> { p1, p2, p3 };
-        
-        Table table = new Table(players);
-        //table.Dealer.TestBoard();
-        //table.Dealer.TestHand();
-        
-
-
-        //print board
-        {
         Console.Clear();
         Console.ForegroundColor = ConsoleColor.DarkCyan;
         Console.Write("Board  :  ");
-        foreach (Card c in table.Dealer.Board)
+        foreach (Card c in Dealer.Board)
         {
             c.PrintCard();
         }
         Console.WriteLine();
-        }
-        /*print players
-        foreach (Player p in players)
+        
+        //print players
+        foreach (Player p in Players)
         {
             Console.ForegroundColor = ConsoleColor.Blue;
             Console.Write($"{p.SeatPosition}-{p.Name} :  ");
@@ -594,67 +677,33 @@ class Program
                 c.PrintCard();
             }
             Console.WriteLine();
-        }*/
-        //Evaluator.EvaluateBoard(players,table.Dealer.Board);
-    
-
-    // Initialize counters for each hand rank (0 = High Card, 1 = One Pair, ..., 8 = Straight Flush)
-    // Initialize counters for each hand rank
-// 0 = High Card, 1 = One Pair, ..., 8 = Straight Flush, 9 = Royal Flush
-int[] handRankCounts = new int[10]; 
-
-int simulations = 1_000_000;
-
-for (int i = 0; i < simulations; i++)
-{
-    
-    table.Dealer.DealPlayerCards();
-    table.Dealer.DealBoardCard();
-    table.Dealer.DealBoardCard();
-    table.Dealer.DealBoardCard();
-
-    foreach (var player in table.Players)
-    {
-        var eval = Evaluator.EvaluatePlayer(player, table.Dealer.Board);
-
-        // check for Royal Flush
-        if (eval.Rank == 8 && eval.PrimaryValue == 14) // Ace-high straight flush
-        {
-            handRankCounts[9]++; // Royal Flush
-        }
-        else
-        {
-            handRankCounts[eval.Rank]++;
         }
     }
-
-    table.Dealer.ClearBoard();
 }
 
-// Print results
-Console.WriteLine("Simulation results after 1,000,000 deals:");
-string[] rankNames = { "High Card", "One Pair", "Two Pair", "Three of a Kind", "Straight",
-                       "Flush", "Full House", "Four of a Kind", "Straight Flush", "Royal Flush" };
-
-for (int rank = 0; rank < handRankCounts.Length; rank++)
+class Program
 {
-    Console.WriteLine($"{rankNames[rank]}: {handRankCounts[rank]}");
-}
+    static void Main()
+    {
+        Player p1 = new Player("Luis",1);
+        Player p2 = new Player("Arny",2);
+        Player p3 = new Player("GMan",3);
+        Player p4 = new Player("Monk",4);
+        Player p5 = new Player("Niga",5);
 
-  
-    }   
-}
- /*
-          __________
-         /          \
-        |            |
-        |            |
-        |            |
-        |            |        
-        |            |
-         \__________/
-
-
+        // (initialize names/chips if you want)
+        List<Player> players = new List<Player> { p1,p2,p3,p4,p5 };
         
-     */       
+        Table table = new Table(players);
+        //table.Dealer.TestBoard();
+        //table.Dealer.TestHand();
+        table.Dealer.DealBoardCards();
+        table.Dealer.DealBoardCards();
+        table.Dealer.DealBoardCards();
+        table.Dealer.DealPlayerCards();
+        table.PrintTable();
+        
+        Evaluator.EvaluateBoard(players,table.Dealer.Board);
+    }   
+} 
 
