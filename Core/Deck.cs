@@ -16,7 +16,7 @@ public class Deck
         }
     }
 
-    public void Shuffle()
+    public void Shuffle()//This probably needs to be done a couple times for a better randomization
     {
         Random rng = new Random();
         int n = cards.Count;
@@ -32,7 +32,6 @@ public class Deck
     
     public Card Deal()
     {
-        if (cards.Count == 0) return null; // or throw exception
         Card top = cards[0];
         cards.RemoveAt(0);
         return top;

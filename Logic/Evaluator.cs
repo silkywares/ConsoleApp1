@@ -49,9 +49,8 @@ class Evaluator
         {
             var evaluation = EvaluatePlayer(p, board);
             results.Add(new PlayerResult(p) { Evaluation = evaluation });
-            Console.WriteLine($"{p.Name}- {rankNames[evaluation.Rank]}");
+            //Console.WriteLine($"{p.Name}- {rankNames[evaluation.Rank]}");
         }
-        EvaluateWinner(results);
         return results;
     }
     public static HandEvaluation EvaluatePlayer(Player p, List<Card> board)
@@ -101,7 +100,7 @@ class Evaluator
             Kicker = kicker
         };
     }
-    private static List<PlayerResult> EvaluateWinner(List<PlayerResult> results)
+    public static List<PlayerResult> EvaluateWinner(List<PlayerResult> results)
     {
        var topRank = results.Max(r => r.Evaluation.Rank);
 
@@ -120,7 +119,7 @@ class Evaluator
         var maxKicker = topPlayers.Max(r => r.Evaluation.Kicker);
         topPlayers = topPlayers.Where(r => r.Evaluation.Kicker == maxKicker).ToList();
 
-        // topPlayers now contains one or more winners
+        /* topPlayers now contains one or more winners
         if (topPlayers.Count == 1)
         {
             Console.WriteLine($"{topPlayers[0].Player.Name} wins!");
@@ -129,6 +128,7 @@ class Evaluator
         {
             Console.WriteLine("Tie between: " + string.Join(", ", topPlayers.Select(p => p.Player.Name)));
         }
+        */
         return topPlayers;
     }
     private static bool IsFourOfAKind(List<IGrouping<Rank, Card>> rankGroups, out int quadRank, out int kicker)
@@ -172,7 +172,6 @@ class Evaluator
             if (ranks[i + 4] - ranks[i] == 4) 
             { 
                 high = ranks[i+4]; 
-                // Kicker = highest remaining card not in straight
                 var straightSet = ranks.GetRange(i, 5).ToHashSet();
                 kicker = ranks.Where(r => !straightSet.Contains(r)).DefaultIfEmpty(0).Max();
                 return true;

@@ -6,6 +6,7 @@ public class Player
     public int ChipCount { get; private set; }
     public short SeatPosition;
     public List<Card> Hand { get; private set; }
+    public bool outflag = true;
     public void AddCard(Card card)
     {
         Hand.Add(card);
@@ -20,7 +21,6 @@ public class Player
         Name = name;
         SeatPosition = seat;
     }
-    public bool outflag = true;
     public void AddChips(int chips)
     {
         ChipCount += chips;

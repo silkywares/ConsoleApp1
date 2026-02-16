@@ -1,4 +1,4 @@
-namespace PokerGame;
+//namespace PokerGame;
 
 public class GameStateDTO
 {
@@ -20,7 +20,7 @@ public class CardDTO
     public int Rank { get; set; }
     public int Suit { get; set; }
 }
-
+/* 
 public GameStateDTO BuildGameStateForPlayer(Player requestingPlayer)
 {
     return new GameStateDTO
@@ -43,3 +43,4 @@ public GameStateDTO BuildGameStateForPlayer(Player requestingPlayer)
         }).ToList()
     };
 }
+*/

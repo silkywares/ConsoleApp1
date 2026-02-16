@@ -2,6 +2,7 @@ namespace PokerGame;
 
 public class Dealer
 {
+    
     private Deck Deck;//change back to private
     public List<Player> Players;
     public List<Card> Board { get; private set; }
