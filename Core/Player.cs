@@ -1,0 +1,47 @@
+namespace PokerGame;
+
+public class Player
+{
+    public String Name;
+    public int ChipCount { get; private set; }
+    public short SeatPosition;
+    public List<Card> Hand { get; private set; }
+    public void AddCard(Card card)
+    {
+        Hand.Add(card);
+    }
+    public void ClearHand()
+    {
+        Hand.Clear();
+    }
+    public Player(string name, short seat)
+    {
+        Hand = new List<Card>();
+        Name = name;
+        SeatPosition = seat;
+    }
+    public bool outflag = true;
+    public void AddChips(int chips)
+    {
+        ChipCount += chips;
+    }
+    public void RemoveChips(int chips)
+    {
+        if(chips >= ChipCount)
+            ChipCount -= chips;
+        else
+            ChipCount = 0;
+    }
+    public void BetChips(int chips)
+    {
+        
+    }
+    public void PromptAction()
+    {
+        //bet
+        //call
+        //check
+        //fold
+    }
+    
+}
