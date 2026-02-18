@@ -1,9 +1,11 @@
 namespace PokerGame;
 
-class Evaluator
+public class Evaluator
 {
     static string[] rankNames = { "High Card", "One Pair", "Two Pair", "Three of a Kind", "Straight",
                             "Flush", "Full House", "Four of a Kind", "Straight Flush", "Royal Flush" };
+
+    public enum HandRank { HighCard, OnePair, TwoPair, ThreeOfAKind, Straight, Flush, FullHouse, FourOfAKind, StraightFlush, RoyalFlush }
 
     /*
     High Card → kicker(s) matter (top 4 remaining cards)
@@ -69,33 +71,33 @@ class Evaluator
 
 
         if (IsStraightFlush(suitGroups, out var sfHigh, out kicker))
-            return new HandEvaluation { Rank = 8, PrimaryValue = sfHigh };
+            return new HandEvaluation { Rank = (int)HandRank.StraightFlush, PrimaryValue = sfHigh };
 
         if (IsFourOfAKind(rankGroups, out var quad, out kicker))
-            return new HandEvaluation { Rank = 7, PrimaryValue = quad, Kicker = kicker };
+            return new HandEvaluation { Rank = (int)HandRank.FourOfAKind, PrimaryValue = quad, Kicker = kicker };
 
         if (IsFullHouse(rankGroups, out var trips, out var pair, out kicker))
-            return new HandEvaluation { Rank = 6, PrimaryValue = trips, SecondaryValue = pair };
+            return new HandEvaluation { Rank = (int)HandRank.FullHouse, PrimaryValue = trips, SecondaryValue = pair };
 
         if (IsFlush(suitGroups, out var flushHigh))
-            return new HandEvaluation { Rank = 5, PrimaryValue = flushHigh };
+            return new HandEvaluation { Rank = (int)HandRank.Flush, PrimaryValue = flushHigh };
 
         if (IsStraight(cards, out var straightHigh, out kicker))
-            return new HandEvaluation { Rank = 4, PrimaryValue = straightHigh };
+            return new HandEvaluation { Rank = (int)HandRank.Straight, PrimaryValue = straightHigh };
 
         if (IsThreeOfAKind(cards, out var tripsRank, out var secondaryValue, out kicker))
-            return new HandEvaluation { Rank = 3, PrimaryValue = tripsRank, SecondaryValue = secondaryValue };
+            return new HandEvaluation { Rank = (int)HandRank.ThreeOfAKind, PrimaryValue = tripsRank, SecondaryValue = secondaryValue };
 
         if (IsTwoPair(cards, out var highPair, out var lowPair, out kicker))
-            return new HandEvaluation { Rank = 2, PrimaryValue = highPair, SecondaryValue = lowPair };
+            return new HandEvaluation { Rank = (int)HandRank.TwoPair, PrimaryValue = highPair, SecondaryValue = lowPair };
 
         if (IsOnePair(rankGroups, out var pairRank, out kicker))
-            return new HandEvaluation { Rank = 1, PrimaryValue = pairRank };
+            return new HandEvaluation { Rank = (int)HandRank.OnePair, PrimaryValue = pairRank };
 
         HighCard(cards, out int highCard, out secondaryValue, out kicker);
         return new HandEvaluation
         {
-            Rank = 0,
+            Rank = (int)HandRank.HighCard,
             PrimaryValue = highCard,
             SecondaryValue = secondaryValue,
             Kicker = kicker

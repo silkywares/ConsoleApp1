@@ -11,4 +11,9 @@ help: Makefile
 ## run    Default run
 .PHONY: run
 run :
-	dotnet run
+	cd Src && dotnet run
+
+## test    Run unit tests
+.PHONY: test
+test :
+	cd Tests && dotnet test
