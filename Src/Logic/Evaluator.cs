@@ -2,7 +2,9 @@ using System.ComponentModel;
 using System.Runtime.CompilerServices;
 
 namespace PokerGame;
-
+/*
+todo- add leftovers to flush
+*/
 public class Evaluator
 {
     static string[] rankNames = { "High Card", "One Pair", "Two Pair", "Three of a Kind", "Straight",
@@ -10,25 +12,6 @@ public class Evaluator
 
     public enum HandRank { HighCard, OnePair, TwoPair, ThreeOfAKind, Straight, Flush, FullHouse, FourOfAKind, StraightFlush, RoyalFlush }
 
-    /*
-    High Card → kicker(s) matter (top 4 remaining cards)
-
-    One Pair → top 3 remaining cards are kickers
-
-    Two Pair → 1 kicker (fifth card outside the two pairs)
-
-    Three of a Kind → 2 kickers (highest remaining cards)
-
-    Straight → kicker usually not needed (high card of straight determines it)
-
-    Flush → top 5 suited cards matter (primary = highest, secondary = next highest, etc.)
-
-    !Full House → no kicker (trips + pair fully determine hand)
-
-    !Four of a Kind → 1 kicker (fifth card outside quads)
-
-    Straight Flush / Royal Flush → kicker irrelevant
-    */
     public class PlayerResult
     {
         public Player Player { get; set; }
@@ -70,19 +53,20 @@ public class Evaluator
 
         var suitGroups = cards.GroupBy(c => c.Suit)
                             .ToList();
+        var leftovers = new List<Card>();
         
 
         if (IsStraightFlush(suitGroups, out var sfHigh))
             return new HandEvaluation { Rank = (int)HandRank.StraightFlush, PrimaryValue = sfHigh};
 
-        if (IsFourOfAKind(rankGroups, cards, out var quad, out var leftovers))
+        if (IsFourOfAKind(rankGroups, cards, out var quad, out leftovers))
             return new HandEvaluation { Rank = (int)HandRank.FourOfAKind, PrimaryValue = quad, Leftovers = leftovers};
 
         if (IsFullHouse(rankGroups, out var trips, out var pair))
-            return new HandEvaluation { Rank = (int)HandRank.FullHouse, PrimaryValue = trips, SecondaryValue = pair, Leftovers = leftovers};
+            return new HandEvaluation { Rank = (int)HandRank.FullHouse, PrimaryValue = trips, SecondaryValue = pair};
 
-        if (IsFlush(suitGroups, out var flushHigh))
-            return new HandEvaluation { Rank = (int)HandRank.Flush, PrimaryValue = flushHigh};
+        if (IsFlush(suitGroups,cards, out var flushHigh, out leftovers))
+            return new HandEvaluation { Rank = (int)HandRank.Flush, PrimaryValue = flushHigh, Leftovers = leftovers};
 
         if (IsStraight(cards, out var straightHigh))
             return new HandEvaluation { Rank = (int)HandRank.Straight, PrimaryValue = straightHigh};
@@ -285,14 +269,21 @@ public class Evaluator
         }
         return false;
     }
-    private static bool IsFlush(List<IGrouping<Suit, Card>> suitGroups, out int high)
+    private static bool IsFlush(List<IGrouping<Suit, Card>> suitGroups, List<Card> cards, out int high, out List<Card>? leftovers)
     {
         high = 0;
-        var largestGroup = suitGroups.OrderByDescending(g => g.Count()).FirstOrDefault()!;
+        leftovers = null;
+        var largestGroup = suitGroups
+                            .OrderByDescending(g => g.Count())
+                            .FirstOrDefault()!;
+        var flushCards = largestGroup
+                            .OrderByDescending(c => c.Rank)
+                            .ToList();
+                            
         if (largestGroup.Count() >= 5)
         {
-            high = largestGroup.Max(c => (int)c.Rank);
-
+            high = (int)flushCards[0].Rank;
+            leftovers = flushCards.Skip(1).Take(4).ToList();
             return true;
         }
         return false;

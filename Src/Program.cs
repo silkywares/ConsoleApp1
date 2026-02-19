@@ -40,13 +40,16 @@ class Program
             List<Evaluator.PlayerResult> results = Evaluator.EvaluateBoard(players, table.Dealer.Board);
             var winner = Evaluator.EvaluateWinner(results);
             winners = winner;
+
             if (dotcount > 1000000)
             {
                 Console.Write(".");
                 dotcount = 0;
             }
 
-            if (winners.Count == 4)
+            // Count how many players have a flush
+            int flushCount = results.Count(r => r.Evaluation.Rank == (int)Evaluator.HandRank.Flush);
+            if (flushCount == 5 && winners.Count == 1)
                 flag = false;
             times++;
             dotcount++;
